@@ -36,21 +36,18 @@ import java.util.ArrayList;
  */
 class DroidCardsView extends View {
     /**
-     * The list of droids displayed in this view.
+     * The distance between the left edges of two adjacent cards. The cards overlap horizontally.
      */
-    private Droid[] mDroids;
-
+    protected float mCardSpacing;
     /**
      * The width of the droid image. In this sample, we hard code an image width in
      * DroidCardsActivity and pass it as an argument to this view.
      */
     float mDroidImageWidth;
-
     /**
-     * The distance between the left edges of two adjacent cards. The cards overlap horizontally.
+     * The list of droids displayed in this view.
      */
-    protected float mCardSpacing;
-
+    private Droid[] mDroids;
     /**
      * Keeps track of the left coordinate for each card.
      */
@@ -63,11 +60,10 @@ class DroidCardsView extends View {
     private ArrayList<DroidCard> mDroidCards = new ArrayList<DroidCard>();
 
     /**
-     *
-     * @param context           The app context.
-     * @param droids            The Droid objects associated with DroidCards.
-     * @param droidImageWidth   The width of each Droid image. Hardcoded in DroidCardsActivity.
-     * @param cardSpacing       The distance between the left edges of two adjacent cards.
+     * @param context         The app context.
+     * @param droids          The Droid objects associated with DroidCards.
+     * @param droidImageWidth The width of each Droid image. Hardcoded in DroidCardsActivity.
+     * @param cardSpacing     The distance between the left edges of two adjacent cards.
      */
     public DroidCardsView(Context context, Droid[] droids, float droidImageWidth,
                           float cardSpacing) {
@@ -90,14 +86,38 @@ class DroidCardsView extends View {
      */
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+
         // Don't draw anything until all the Asynctasks are done and all the DroidCards are ready.
         if (mDroids.length > 0 && mDroidCards.size() == mDroids.length) {
             // Loop over all the droids, except the last one.
-            for (int i = 0; i < mDroidCards.size(); i++) {
+            int i;
+            for (i = 0; i < mDroidCards.size() - 1; i++) {
+
                 // Each card is laid out a little to the right of the previous one.
                 mCardLeft = i * mCardSpacing;
+
+                // Save the canvas state.
+                canvas.save();
+
+                // Restrict the drawing area to only what will be visible.
+                canvas.clipRect(
+                        mCardLeft,
+                        0,
+                        mCardLeft + mCardSpacing,
+                        mDroidCards.get(i).getHeight()
+                );
+
+                // Draw the card. Only the parts of the card that lie within the bounds defined by
+                // the clipRect() get drawn.
                 drawDroidCard(canvas, mDroidCards.get(i), mCardLeft, 0);
+
+                // Revert canvas to non-clipping state.
+                canvas.restore();
             }
+
+            // Draw the final card. This one doesn't get clipped.
+            drawDroidCard(canvas, mDroidCards.get(mDroidCards.size() - 1),
+                    mCardLeft + mCardSpacing, 0);
         }
 
         // Invalidate the whole view. Doing this calls onDraw() if the view is visible.
@@ -117,10 +137,10 @@ class DroidCardsView extends View {
         paint.setColor(Color.WHITE);
         paint.setStyle(Paint.Style.FILL);
         Rect cardRect = new Rect(
-                (int)left,
-                (int)top,
-                (int)left + (int) droidCard.getWidth(),
-                (int)top + (int) droidCard.getHeight()
+                (int) left,
+                (int) top,
+                (int) left + (int) droidCard.getWidth(),
+                (int) top + (int) droidCard.getHeight()
         );
         canvas.drawRect(cardRect, paint);
 
@@ -204,8 +224,8 @@ class DroidCardsView extends View {
      * The order of the
      */
     class DroidCardWorkerTask extends AsyncTask<Droid, Void, Bitmap> {
-        Droid droid;
         private final WeakReference<ArrayList<DroidCard>> mDroidCardsReference;
+        Droid droid;
 
         public DroidCardWorkerTask() {
             mDroidCardsReference = new WeakReference<ArrayList<DroidCard>>(mDroidCards);
